@@ -2,8 +2,6 @@ from random import randint
 from math import sqrt
 from sys import exit
 
-
-
 variant = 322
 m = 6
 y_max = (30 - variant) * 10
@@ -11,12 +9,10 @@ y_min = (20 - variant) * 10
 x1_min, x1_max, x2_min, x2_max = 10, 40, 30, 80
 x_n = [[-1, -1], [1, -1], [-1, 1]]
 
-
 def choice_cr():
     table = {5: 2.00, 6: 2.00, 7: 2.17, 8: 2.17, 9: 2.29, 10: 2.29}
     rkr = table.get(m)
     return rkr
-
 
 def average_y(list):
     aver_y = []
@@ -27,7 +23,6 @@ def average_y(list):
         aver_y.append(s / len(list[i]))
     return aver_y
 
-
 def dispersion(list):
     disp = []
     for i in range(len(list)):
@@ -37,17 +32,14 @@ def dispersion(list):
         disp.append(s / len(list[i]))
     return disp
 
-
 def fuv(u, v):
     if u >= v:
         return u / v
     else:
         return v / u
 
-
 def discriminant(x11, x12, x13, x21, x22, x23, x31, x32, x33):
     return x11 * x22 * x33 + x12 * x23 * x31 + x32 * x21 * x13 - x13 * x22 * x31 - x32 * x23 * x11 - x12 * x21 * x33
-
 
 y = [[randint(y_min, y_max) for j in range(6)] for i in range(3)]
 av_y = average_y(y)
@@ -68,7 +60,6 @@ Ruv.append(abs(t[0] - 1) / sigma_t)
 Ruv.append(abs(t[1] - 1) / sigma_t)
 Ruv.append(abs(t[2] - 1) / sigma_t)
 
-
 for i in range(len(Ruv)):
     try:
         if Ruv[i] > Rkr:
@@ -76,9 +67,7 @@ for i in range(len(Ruv)):
     except TypeError:
         print("Нестача табличних значень, виберіть корректне m")
         exit()
-
-
-
+        
 mx1 = (x_n[0][0] + x_n[1][0] + x_n[2][0]) / 3
 mx2 = (x_n[0][1] + x_n[1][1] + x_n[2][1]) / 3
 my = (av_y[0] + av_y[1] + av_y[2]) / 3
