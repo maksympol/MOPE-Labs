@@ -273,7 +273,12 @@ while not flag:
     d = len(znach_koef)
     f4 = N - d
     f3 = (m - 1) * N
+    print("Кількість значимих коефіцієнтів:" ,d)
 
+    if len(znach_koef) == 2:
+        print("Модель неадекватна")
+        sys.exit()
+    
     deviation_of_adequacy = (m / (N - d)) * sum([(result_2[i] - Y_average[i]) ** 2 for i in range(N)])
 
     Fp = deviation_of_adequacy / S2_beta_s
