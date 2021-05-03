@@ -11,7 +11,7 @@ def regression(x, b):
     return y
 
 
-x_range = ((-10, 1), (-9, 7), (-8, 3))
+x_range = [[-10, 1], [-9, 7], [-8, 3]]
 
 x_aver_max = sum([x[1] for x in x_range]) / 3
 x_aver_min = sum([x[0] for x in x_range]) / 3
@@ -164,6 +164,8 @@ def kriteriy_fishera(y, y_aver, y_new, n, m, d):
 
 
 def check(X, Y, B, n, m):
+    global x_range, x_aver_max, x_aver_min, y_max, y_min
+    
     print('\n\tПеревірка рівняння:')
     f1 = m - 1
     f2 = n
@@ -224,7 +226,21 @@ def check(X, Y, B, n, m):
         print('Математична модель адекватна експериментальним даним')
     else:
         print('Математична модель не адекватна експериментальним даним')
+        print('\nМатематична модель не адекватна експериментальним даним')
+        print('Отже, починаємо спочатку, але коефіцієнти по варіанту ділимо на 1.7')
 
+        for i in range(len(x_range)):
+            for j in range(len(x_range[0])):
+                x_range[i][j] /= 1.7
+
+        x_aver_max = sum([x[1] for x in x_range]) / 3
+        x_aver_min = sum([x[0] for x in x_range]) / 3
+
+        y_max = 200 + int(x_aver_max)
+        y_min = 200 + int(x_aver_min)
+
+        main(n, m)
+   
 
 def main(n, m):
     X5, Y5, X5_norm = plan_matrix5(n, m)
