@@ -1,165 +1,223 @@
-from random import *
-import numpy as np
-from numpy.linalg import solve
-from scipy.stats import f, t
-from functools import partial
+import random as rn
+from math import sqrt
+from numpy import linalg as lg
+import pprint
 
+def exp_raw(x1_num, x2_num, x3_num, y, m = 3):
+    y_gen = [y[0] + (y[1]-y[0])*rn.random() for i in range(m)]
+    y_mid = sum(y_gen)/m
+    sigma = 0
+    for i in range(len(y_gen)):
+        sigma += ((y_gen[i] - y_mid)**2)/m
+    return [x1_num, x2_num, x3_num, y_gen, y_mid, sigma]
 
-class FractionalExperiment:
-    """Проведення дробового трьохфакторного експерименту"""
+def experiment(x1, x2, x3, y):
+    flag = 1
+    counter = 1
+    while flag:
+        flag = 0
+        exp1 = exp_raw(x1[0], x2[0], x3[0], y)
+        exp2 = exp_raw(x1[0], x2[1], x3[1], y)
+        exp3 = exp_raw(x1[1], x2[0], x3[1], y)
+        exp4 = exp_raw(x1[1], x2[1], x3[0], y)
 
-    def __init__(self, n, m):
-        self.n = n
-        self.m = m
-        self.x_min = (10 + 30 + 10) / 3
-        self.x_max = (40 + 80 + 20) / 3
-        self.y_max = round(200 + self.x_max)
-        self.y_min = round(200 + self.x_min)
-        self.x_norm = [[1, -1, -1, -1],
-                       [1, -1, 1, 1],
-                       [1, 1, -1, 1],
-                       [1, 1, 1, -1],
-                       [1, -1, -1, 1],
-                       [1, -1, 1, -1],
-                       [1, 1, -1, -1],
-                       [1, 1, 1, 1]]
-        self.x_range = [(10, 40), (30, 80), (10, 20)]
-        self.y = np.zeros(shape=(self.n, self.m))
-        self.y_new = []
-        for i in range(self.n):
-            for j in range(self.m):
-                self.y[i][j] = randint(self.y_min, self.y_max)
-        self.y_av = [round(sum(i) / len(i), 2) for i in self.y]
-        self.x_norm = self.x_norm[:len(self.y)]
-        self.x = np.ones(shape=(len(self.x_norm), len(self.x_norm[0])))
-        for i in range(len(self.x_norm)):
-            for j in range(1, len(self.x_norm[i])):
-                if self.x_norm[i][j] == -1:
-                    self.x[i][j] = self.x_range[j - 1][0]
-                else:
-                    self.x[i][j] = self.x_range[j - 1][1]
-        self.f1 = m - 1
-        self.f2 = n
-        self.f3 = self.f1 * self.f2
-        self.q = 0.05
+        table = [exp1, exp2, exp3, exp4]
 
-    def regression(self, x, b):
-        """Підстановка коефіцієнтів у рівняння регресії"""
-        y = sum([x[i] * b[i] for i in range(len(x))])
-        return y
+        cochrane = cochrane_kriteria(table)
+        cochrane_check = cochrane[0]
+        Gp = cochrane[1]
 
-    def count_koefs(self):
-        """Розрахунок коефіцієнтів рівняння регресії"""
-        mx1 = sum(self.x[:, 1]) / self.n
-        mx2 = sum(self.x[:, 2]) / self.n
-        mx3 = sum(self.x[:, 3]) / self.n
-        my = sum(self.y_av) / self.n
-        a12 = sum([self.x[i][1] * self.x[i][2] for i in range(len(self.x))]) / self.n
-        a13 = sum([self.x[i][1] * self.x[i][3] for i in range(len(self.x))]) / self.n
-        a23 = sum([self.x[i][2] * self.x[i][3] for i in range(len(self.x))]) / self.n
-        a11 = sum([i ** 2 for i in self.x[:, 1]]) / self.n
-        a22 = sum([i ** 2 for i in self.x[:, 2]]) / self.n
-        a33 = sum([i ** 2 for i in self.x[:, 3]]) / self.n
-        a1 = sum([self.y_av[i] * self.x[i][1] for i in range(len(self.x))]) / self.n
-        a2 = sum([self.y_av[i] * self.x[i][2] for i in range(len(self.x))]) / self.n
-        a3 = sum([self.y_av[i] * self.x[i][3] for i in range(len(self.x))]) / self.n
-
-        X = [[1, mx1, mx2, mx3], [mx1, a11, a12, a13], [mx2, a12, a22, a23], [mx3, a13, a23, a33]]
-        Y = [my, a1, a2, a3]
-        B = [round(i, 2) for i in solve(X, Y)]
-        print('\nРівняння регресії')
-        print(f'y = {B[0]} + {B[1]}*x1 + {B[2]}*x2 + {B[3]}*x3')
-
-        return B
-
-    def dispersion(self):
-        """Розрахунок дисперсії"""
-        res = []
-        for i in range(self.n):
-            s = sum([(self.y_av[i] - self.y[i][j]) ** 2 for j in range(self.m)]) / self.m
-            res.append(s)
-        return res
-
-    def kohren(self):
-        """Перевірка однорідності дисперсій за критерієм Кохрена"""
-        q1 = self.q / self.f1
-        fisher_value = f.ppf(q=1 - q1, dfn=self.f2, dfd=(self.f1 - 1) * self.f2)
-        G_cr = fisher_value / (fisher_value + self.f1 - 1)
-        s = self.dispersion()
-        Gp = max(s) / sum(s)
-        return Gp, G_cr
-
-    def student(self):
-        """Перевірка знащущості коефіцієнтів за критерієм Стьюдента"""
-
-        def bs():
-            res = [sum(1 * y for y in self.y_av) / self.n]
-            for i in range(3):  # 4 - ксть факторів
-                b = sum(j[0] * j[1] for j in zip(self.x[:, i], self.y_av)) / self.n
-                res.append(b)
-            return res
-
-        S_kv = self.dispersion()
-        s_kv_aver = sum(S_kv) / self.n
-
-        # статиcтична оцінка дисперсії
-        s_Bs = (s_kv_aver / self.n / self.m) ** 0.5
-        Bs = bs()
-        ts = [abs(B) / s_Bs for B in Bs]
-        return ts
-
-    def fisher(self, d):
-        """Перевірка адекватності за критерієм Фішера"""
-        S_ad = self.m / (self.n - d) * sum([(self.y_new[i] - self.y_av[i]) ** 2 for i in range(len(self.y))])
-        S_kv = self.dispersion()
-        S_kv_aver = sum(S_kv) / self.n
-        F_p = S_ad / S_kv_aver
-        return F_p
-
-    def check(self):
-        """Проведення статистичних перевірок"""
-        student = partial(t.ppf, q=1 - 0.025)
-        t_student = student(df=self.f3)
-
-        print('\nПеревірка за критерієм Кохрена')
-        Gp, G_kr = self.kohren()
-        print(f'Gp = {Gp}')
-        if Gp < G_kr:
-            print(f'З ймовірністю {1-self.q} дисперсії однорідні.')
+        if not cochrane_check:
+            flag = 1
+            continue
         else:
-            print("Необхідно збільшити кількість дослідів")
-            self.m += 1
-            FractionalExperiment(self.n, self.m)
 
-        ts = self.student()
-        print('\nПеревірка значущості коефіцієнтів за критерієм Стьюдента')
-        print('Критерій Стьюдента:\n', ts)
-        res = [t for t in ts if t > t_student]
-        B = self.count_koefs()
-        final_k = [B[ts.index(i)] for i in ts if i in res]
-        print('Коефіцієнти {} статистично незначущі, тому ми виключаємо їх з рівняння.'.format(
-            [i for i in B if i not in final_k]))
+            X1 = [exp1[0], exp2[0], exp3[0], exp4[0]]
+            X2 = [exp1[1], exp2[1], exp3[1], exp4[1]]
+            X3 = [exp1[2], exp2[2], exp3[2], exp4[2]]
 
-        for j in range(self.n):
-            self.y_new.append(self.regression([self.x[j][ts.index(i)] for i in ts if i in res], final_k))
+            y1mid = exp1[-2]
+            y2mid = exp2[-2]
+            y3mid = exp3[-2]
+            y4mid = exp4[-2]
 
-        print(f'\nЗначення "y" з коефіцієнтами {final_k}')
-        print(self.y_new)
+            mx1 = sum(X1)/4
+            mx2 = sum(X2)/4
+            mx3 = sum(X3)/4
 
-        d = len(res)
-        f4 = self.n - d
-        F_p = self.fisher(d)
+            my = (y1mid + y2mid + y3mid + y4mid)/4
 
-        fisher = partial(f.ppf, q=1 - 0.05)
-        f_t = fisher(dfn=f4, dfd=self.f3)  # табличне знач
-        print('\nПеревірка адекватності за критерієм Фішера')
-        print('Fp =', F_p)
-        print('F_t =', f_t)
-        if F_p < f_t:
-            print('Математична модель адекватна експериментальним даним')
-        else:
-            print('Математична модель не адекватна експериментальним даним')
+            a1 = (X1[0]*y1mid + X1[1]*y2mid + X1[2]*y3mid + X1[3]*y4mid)/4
+            a2 = (X2[0]*y1mid + X2[1]*y2mid + X2[2]*y3mid + X2[3]*y4mid)/4
+            a3 = (X3[0]*y1mid + X3[1]*y2mid + X3[2]*y3mid + X3[3]*y4mid)/4
+
+            a11 = (X1[0]*X1[0] + X1[1]*X1[1] + X1[2]*X1[2] + X1[3]*X1[3])/4
+            a22 = (X2[0]*X2[0] + X2[1]*X2[1] + X2[2]*X2[2] + X2[3]*X2[3])/4
+            a33 = (X3[0]*X3[0] + X3[1]*X3[1] + X3[2]*X3[2] + X3[3]*X3[3])/4
+            a12 = (X1[0]*X2[0] + X1[1]*X2[1] + X1[2]*X2[2] + X1[3]*X2[3])/4
+            a21 = a12
+            a13 = (X1[0]*X3[0] + X1[1]*X3[1] + X1[2]*X3[2] + X1[3]*X3[3])/4
+            a31 = a13
+            a23 = (X2[0]*X3[0] + X2[1]*X3[1] + X2[2]*X3[2] + X2[3]*X3[3])/4
+            a32 = a23
+
+            b0 = (lg.det([[my, mx1, mx2, mx3],
+                          [a1, a11, a12, a13],
+                          [a2, a12, a22, a32],
+                          [a3, a13, a23, a33]]))/(lg.det([[1, mx1, mx2, mx3],
+                                                          [mx1, a11, a21, a31],
+                                                          [mx2, a12, a22, a32],
+                                                          [mx3, a13, a23, a33]]))
+            b1 = (lg.det([[1, my, mx2, mx3],
+                          [mx1, a1, a12, a13],
+                          [mx2, a2, a22, a32],
+                          [mx3, a3, a23, a33]]))/(lg.det([[1, mx1, mx2, mx3],
+                                                          [mx1, a11, a21, a31],
+                                                          [mx2, a12, a22, a32],
+                                                          [mx3, a13, a23, a33]]))
+            b2 = (lg.det([[1, mx1, my, mx3],
+                          [mx1, a11, a1, a13],
+                          [mx2, a12, a2, a32],
+                          [mx3, a13, a3, a33]]))/(lg.det([[1, mx1, mx2, mx3],
+                                                          [mx1, a11, a21, a31],
+                                                          [mx2, a12, a22, a32],
+                                                          [mx3, a13, a23, a33]]))
+            b3 = (lg.det([[1, mx1, mx2, my],
+                          [mx1, a11, a12, a1],
+                          [mx2, a12, a22, a2],
+                          [mx3, a13, a23, a3]]))/(lg.det([[1, mx1, mx2, mx3],
+                                                          [mx1, a11, a21, a31],
+                                                          [mx2, a12, a22, a32],
+                                                          [mx3, a13, a23, a33]]))
+
+            b = [b0, b1, b2, b3]
+            check_b = check(b, x1, x2, x3)
+
+            student = student_kriteria(table)
+            indexes = student[0]
+            SB = student[1]
+            Sbeta = student[2]
+            student_b = list(map(lambda x: x if b.index(x) in indexes else 0, b))
+            student_checks = check(student_b, x1, x2, x3)
+
+            fisher = fisher_kriteria(table, student_checks, SB)
+            fisher_check = fisher[0]
+            Fp = fisher[1]
+            print('{} ітерація'.format(counter))
+            print('Fp:')
+            print(Fp)
+            print(Gp*Sbeta*Fp)
+            print('\n')
+            if fisher_check:
+                return table, b, check_b, student_b, student_checks, Fp
+            else:
+                flag = 1
+                counter += 1
+                x1 = list(map(lambda x: x/(Gp*Sbeta*Fp), x1))
+                x2 = list(map(lambda x: x/(Gp*Sbeta*Fp), x2))
+                x3 = list(map(lambda x: x/(Gp*Sbeta*Fp), x3))
+                xcmax = int(1/3*(x1[1] + x2[1] + x3[1]))
+                xcmin = int(1/3*(x1[0] + x2[0] + x3[0]))
+                ymax = 200 + xcmax
+                ymin = 200 + xcmin
+                y = [ymax, ymin]
+
+def check(koeficients, x1 = [-1, 1], x2 = [-1, 1], x3 = [-1, 1]):
+    check1 = koeficients[0] + x1[0]*koeficients[1] + x2[0]*koeficients[2] + x3[0]*koeficients[3]
+    check2 = koeficients[0] + x1[0]*koeficients[1] + x2[1]*koeficients[2] + x3[1]*koeficients[3]
+    check3 = koeficients[0] + x1[1]*koeficients[1] + x2[0]*koeficients[2] + x3[1]*koeficients[3]
+    check4 = koeficients[0] + x1[1]*koeficients[1] + x2[1]*koeficients[2] + x3[0]*koeficients[3]
+    return [check1, check2, check3, check4]
+
+def cochrane_kriteria(table, N = 4):
+    sigma = [table[i][-1] for i in range(N)]
+    Gt = 0.7679
+    Gp = max(sigma)/sum(sigma)
+    if Gp < Gt:
+        return 1, Gp
+    else:
+        return 0, Gp
+
+def student_kriteria(table, m = 3, N = 4):
+    sigma = [table[i][-1] for i in range(N)]
+    y_mid = [table[i][-2] for i in range(N)]
+    SB = sum(sigma)/N
+    Sb = SB/(N*m)
+    Sbeta = sqrt(Sb)
+
+    beta0 = 1/4*(y_mid[0]*1 + y_mid[1]*1 + y_mid[2]*1 + y_mid[3]*1)
+    beta1 = 1/4*(y_mid[0]*(-1) + y_mid[1]*(-1) + y_mid[2]*1 + y_mid[3]*1)
+    beta2 = 1/4*(y_mid[0]*(-1) + y_mid[1]*1 + y_mid[2]*(-1) + y_mid[3]*1)
+    beta3 = 1/4*(y_mid[0]*(-1) + y_mid[1]*1 + y_mid[2]*1 + y_mid[3]*(-1))
+
+    ttab = 2.306
+
+    t0 = abs(beta0)/Sbeta
+    t1 = abs(beta1)/Sbeta
+    t2 = abs(beta2)/Sbeta
+    t3 = abs(beta3)/Sbeta
+
+    t = [t0, t1, t2, t3]
+    indexes = []
+    for i in t:
+        if i > ttab:
+            indexes.append(t.index(i))
+
+    return [indexes, SB, Sbeta]
+
+def fisher_kriteria(table, checks, Sb, d = 2, N = 4, m = 3):
+    y_mid = [table[i][-2] for i in range(N)]
+    Sad = 0
+    for i in range(N):
+        Sad += m/(N-d)*(checks[i] - y_mid[i])**2
+    Ft = 4.5
+    Fp = Sad/Sb
+    if Fp > Ft:
+        return 0, Fp
+    else:
+        return 1, Fp
 
 
-experiment = FractionalExperiment(7, 8)
-experiment.check()
+
+x1 = [10, 40]
+print('x1min = {0}, x1max = {1}'.format(x1[0], x1[1]))
+x2 = [30, 80]
+print('x2min = {0}, x2max = {1}'.format(x2[0], x2[1]))
+x3 = [10, 20]
+print('x3min = {0}, x3max = {1}\n'.format(x3[0], x3[1]))
+
+
+xcmax = int(1/3*(x1[1] + x2[1] + x3[1]))
+xcmin = int(1/3*(x1[0] + x2[0] + x3[0]))
+print('Xcmin = {0}, Xcmax = {1}\n'.format(xcmin, xcmax))
+ymax = 200 + xcmax
+ymin = 200 + xcmin
+y = [ymin, ymax]
+print('ymin = {0}, ymax = {1}\n'.format(ymin, ymax))
+
+
+research = experiment(x1, x2, x3, y)
+table = research[0]
+koefs_b = research[1]
+check_b = research[2]
+koefs_sb = research[3]
+check_sb = research[4]
+Fp = research[5]
+
+print('Таблиця експерименту')
+pprint.pprint(table)
+print('\n')
+print('b:')
+print(koefs_b)
+print('\n')
+print('перевірка b:')
+print(check_b)
+print('\n')
+print('значимі коефіцієнти:')
+print(koefs_sb)
+print('\n')
+print('перевірка sb:')
+print(check_sb)
+print('\n')
+print('Fp:')
+print(Fp)
