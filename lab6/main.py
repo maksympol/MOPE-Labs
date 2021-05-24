@@ -1,4 +1,16 @@
 from math import fabs, sqrt
+import time
+
+def timer(func):
+    def wrap(*args, **kwargs):
+        t1 = time.time()
+        result = func(*args, **kwargs)
+        t2 = time.time()
+        print(f'Метод {func.__name__!r} виконався за {(t2 - t1):.7f}s')
+        return result
+
+    return wrap_func
+
 
 m = 2
 p = 0.95
@@ -26,6 +38,7 @@ f3 = None
 
 
 class Perevirku:
+    @timer
     def get_cohren_value(size_of_selections, qty_of_selections, significance):
         from _pydecimal import Decimal
         from scipy.stats import f
@@ -35,12 +48,14 @@ class Perevirku:
         fisher = f.isf(*params)
         result = fisher / (fisher + (size_of_selections - 1 - 1))
         return Decimal(result).quantize(Decimal('.0001')).__float__()
-
+       
+    @timer
     def get_student_value(f3, significance):
         from _pydecimal import Decimal
         from scipy.stats import t
         return Decimal(abs(t.ppf(significance / 2, f3))).quantize(Decimal('.0001')).__float__()
-
+    
+    @timer
     def get_fisher_value(f3, f4, significance):
         from _pydecimal import Decimal
         from scipy.stats import f
@@ -50,8 +65,8 @@ class Perevirku:
 def generate_matrix():
     def f(X1, X2, X3):
         from random import randrange
-        y = 2.1 + 1.1 * X1 + 0.5 * X2 + 4.2 * X3 + 8.6 * X1 * X1 + 1.0 * X2 * X2 + 2.8 * X3 * X3 + 1.0 * X1 * X2 + \
-            0.5 * X1 * X3 + 0.9 * X2 * X3 + 2.4 * X1 * X2 * X3 + randrange(0, 10) - 5
+        y = 6.7 + 2.8 * X1 + 1.3 * X2 + 8.9 * X3 + 6.3 * X1 * X1 + 0.6 * X2 * X2 + 8.1 * X3 * X3 + 5.4 * X1 * X2 + \
+            0.2 * X1 * X3 + 4.9 * X2 * X3 + 5.2 * X1 * X2 * X3 + randrange(0, 10) - 5
         return y
 
     matrix_with_y = [[f(matrix_x[j][0], matrix_x[j][1], matrix_x[j][2]) for i in range(m)] for j in range(N)]
@@ -258,4 +273,16 @@ def run_experiment():
 
 
 if __name__ == '__main__':
-    run_experiment()
+    start = time.time()
+    cnt = 0
+    adekvat = 0
+
+    while (time.time() - start) <= 10:
+        cnt += 1
+
+        try:
+            adekvat += run_experiment()
+        except Exception:
+            continue
+
+    print(f'За 10 секунд експеремент був адекватним {adekvat} разів з {cnt}')
